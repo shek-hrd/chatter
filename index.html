@@ -1066,18 +1066,24 @@
             
             // Initialize chat manager
             init() {
-                // Load any saved messages
-                this.loadMessages();
-                
-                // Display existing messages
-                this.displayMessages();
-                
-                // Set up event listeners
-                this.setupEventListeners();
-                
-                // Initialize network manager
-                this.networkManager = new NetworkManager(this.userManager, this);
-                this.networkManager.init();
+                try {
+                    // Load any saved messages
+                    this.loadMessages();
+                    
+                    // Display existing messages
+                    this.displayMessages();
+                    
+                    // Set up event listeners
+                    this.setupEventListeners();
+                    
+                    // Initialize network manager
+                    this.networkManager = new NetworkManager(this.userManager, this);
+                    this.networkManager.init();
+                    
+                    console.log('ChatManager initialized successfully');
+                } catch (error) {
+                    console.error('Error initializing ChatManager:', error);
+                }
             }
             
             // Set up event listeners
@@ -1227,67 +1233,120 @@
             
             // Display a message in the chat area
             displayMessage(message) {
-                const chatArea = document.getElementById('chat-area');
-                
-                const messageElement = document.createElement('div');
-                messageElement.className = `message ${message.isOwn ? 'own' : 'other'}`;
-                
-                // Determine display name
-                const displayName = message.isOwn ? 'You' : (message.senderName || message.sender);
-                
-                // Determine content (hide if secret and not own)
-                const content = (message.isSecret && !message.isOwn) ? '***' : message.content;
-                
-                messageElement.innerHTML = `
-                    <div class="message-header">
-                        <span>${displayName} (${message.sender})</span>
-                        <span>${Utils.formatTime(message.timestamp)}</span>
-                    </div>
-                    <div class="message-content">
-                        ${content}
-                    </div>
-                `;
-                
-                chatArea.appendChild(messageElement);
-                
-                // Scroll to bottom
-                chatArea.scrollTop = chatArea.scrollHeight;
+                try {
+                    const chatArea = document.getElementById('chat-area');
+                    
+                    if (!chatArea) {
+                        console.error('Chat area not found');
+                        return;
+                    }
+                    
+                    const messageElement = document.createElement('div');
+                    messageElement.className = `message ${message.isOwn ? 'own' : 'other'}`;
+                    
+                    // Determine display name
+                    const displayName = message.isOwn ? 'You' : (message.senderName || message.sender);
+                    
+                    // Determine content (hide if secret and not own)
+                    const content = (message.isSecret && !message.isOwn) ? '***' : message.content;
+                    
+                    // Format timestamp safely
+                    let timestamp = 'Unknown time';
+                    try {
+                        timestamp = Utils.formatTime(message.timestamp);
+                    } catch (e) {
+                        console.error('Error formatting timestamp:', e);
+                        timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    }
+                    
+                    messageElement.innerHTML = `
+                        <div class="message-header">
+                            <span>${displayName} (${message.sender})</span>
+                            <span>${timestamp}</span>
+                        </div>
+                        <div class="message-content">
+                            ${content}
+                        </div>
+                    `;
+                    
+                    chatArea.appendChild(messageElement);
+                    
+                    // Scroll to bottom
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                } catch (error) {
+                    console.error('Error displaying message:', error);
+                    console.error('Message data:', message);
+                }
             }
             
             // Display all messages
             displayMessages() {
-                const chatArea = document.getElementById('chat-area');
-                chatArea.innerHTML = ''; // Clear existing messages
-                
-                // Add welcome message
-                const welcomeElement = document.createElement('div');
-                welcomeElement.className = 'message other';
-                welcomeElement.innerHTML = `
-                    <div class="message-header">
-                        <span>System</span>
-                        <span>Just now</span>
-                    </div>
-                    <div class="message-content">
-                        Welcome to the Decentralized Chat Network! Your unique stamp is ${this.userManager.stamp}.
-                    </div>
-                `;
-                chatArea.appendChild(welcomeElement);
-                
-                // Display all messages
-                this.messages.forEach(message => {
-                    this.displayMessage(message);
-                });
+                try {
+                    const chatArea = document.getElementById('chat-area');
+                    if (!chatArea) {
+                        console.error('Chat area not found');
+                        return;
+                    }
+                    
+                    chatArea.innerHTML = ''; // Clear existing messages
+                    
+                    // Log the number of messages to display
+                    console.log(`Displaying ${this.messages.length} messages`);
+                    
+                    // Add welcome message
+                    const welcomeElement = document.createElement('div');
+                    welcomeElement.className = 'message other';
+                    welcomeElement.innerHTML = `
+                        <div class="message-header">
+                            <span>System</span>
+                            <span>Just now</span>
+                        </div>
+                        <div class="message-content">
+                            Welcome to the Decentralized Chat Network! Your unique stamp is ${this.userManager.stamp}.
+                        </div>
+                    `;
+                    chatArea.appendChild(welcomeElement);
+                    
+                    // Display all messages
+                    this.messages.forEach((message, index) => {
+                        console.log(`Displaying message ${index}:`, message);
+                        this.displayMessage(message);
+                    });
+                    
+                    // Scroll to bottom after displaying all messages
+                    setTimeout(() => {
+                        chatArea.scrollTop = chatArea.scrollHeight;
+                    }, 100);
+                } catch (error) {
+                    console.error('Error displaying messages:', error);
+                }
             }
             
             // Load messages from localStorage
             loadMessages() {
                 try {
                     const messages = localStorage.getItem('decentralizedChatMessages');
+                    console.log('Raw messages from localStorage:', messages);
+                    
                     if (messages) {
-                        this.messages = JSON.parse(messages);
+                        const parsedMessages = JSON.parse(messages);
+                        console.log('Parsed messages:', parsedMessages);
+                        
+                        // Validate that parsedMessages is an array
+                        if (Array.isArray(parsedMessages)) {
+                            this.messages = parsedMessages;
+                            console.log(`Loaded ${this.messages.length} messages from localStorage`);
+                        } else {
+                            console.warn('Messages from localStorage are not an array:', parsedMessages);
+                            this.messages = [];
+                        }
+                    } else {
+                        console.log('No messages found in localStorage');
+                        this.messages = [];
                     }
                 } catch (error) {
                     console.error('Failed to load messages:', error);
+                    this.messages = [];
                 }
             }
             
@@ -1314,9 +1373,11 @@
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
             try {
+                console.log('Initializing application...');
                 userManager.init();
                 chatManager = new ChatManager(userManager);
                 chatManager.init();
+                console.log('Application initialized successfully');
                 
                 // Set up event listeners
                 document.getElementById('nickname').addEventListener('change', function() {
