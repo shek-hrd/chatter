@@ -375,34 +375,70 @@
                 // Fetch real message history from localStorage
                 try {
                     const tbody = document.getElementById('message-history');
+                    if (!tbody) {
+                        console.error('Message history table body not found');
+                        return;
+                    }
+                    
                     tbody.innerHTML = '';
                     
                     // Get messages from localStorage
                     const messagesData = localStorage.getItem('decentralizedChatMessages');
+                    console.log('Raw messages data from localStorage:', messagesData);
+                    
                     if (messagesData) {
                         const messages = JSON.parse(messagesData);
+                        console.log('Parsed messages:', messages);
                         
-                        messages.forEach(msg => {
-                            const row = document.createElement('tr');
-                            // Format timestamp
-                            const timestamp = new Date(msg.timestamp).toLocaleString();
-                            // Determine message type
-                            const type = msg.isSecret ? 'secret' : 'text';
+                        // Validate that messages is an array
+                        if (Array.isArray(messages)) {
+                            messages.forEach((msg, index) => {
+                                try {
+                                    const row = document.createElement('tr');
+                                    // Format timestamp
+                                    let timestamp = 'Unknown time';
+                                    try {
+                                        timestamp = new Date(msg.timestamp).toLocaleString();
+                                    } catch (e) {
+                                        console.error('Error formatting timestamp:', e);
+                                        timestamp = 'Invalid date';
+                                    }
+                                    
+                                    // Determine message type
+                                    const type = msg.isSecret ? 'secret' : 'text';
+                                    
+                                    // Truncate content if too long
+                                    let content = msg.content || '';
+                                    if (content.length > 100) {
+                                        content = content.substring(0, 100) + '...';
+                                    }
+                                    
+                                    row.innerHTML = `
+                                        <td>${msg.id || 'N/A'}</td>
+                                        <td>${msg.sender || 'Unknown'}</td>
+                                        <td>${content}</td>
+                                        <td>${timestamp}</td>
+                                        <td>${type}</td>
+                                    `;
+                                    tbody.appendChild(row);
+                                } catch (msgError) {
+                                    console.error('Error processing message at index', index, ':', msgError);
+                                    const row = document.createElement('tr');
+                                    row.innerHTML = `<td colspan="5">Error displaying message at index ${index}: ${msgError.message}</td>`;
+                                    tbody.appendChild(row);
+                                }
+                            });
                             
-                            row.innerHTML = `
-                                <td>${msg.id}</td>
-                                <td>${msg.sender}</td>
-                                <td>${msg.content}</td>
-                                <td>${timestamp}</td>
-                                <td>${type}</td>
-                            `;
-                            tbody.appendChild(row);
-                        });
-                        
-                        // If no messages, show a message
-                        if (messages.length === 0) {
+                            // If no messages, show a message
+                            if (messages.length === 0) {
+                                const row = document.createElement('tr');
+                                row.innerHTML = '<td colspan="5">No messages found</td>';
+                                tbody.appendChild(row);
+                            }
+                        } else {
+                            console.warn('Messages from localStorage are not an array:', messages);
                             const row = document.createElement('tr');
-                            row.innerHTML = '<td colspan="5">No messages found</td>';
+                            row.innerHTML = '<td colspan="5">Invalid message data format</td>';
                             tbody.appendChild(row);
                         }
                     } else {
@@ -413,10 +449,12 @@
                 } catch (error) {
                     console.error('Error fetching message history:', error);
                     const tbody = document.getElementById('message-history');
-                    tbody.innerHTML = '';
-                    const row = document.createElement('tr');
-                    row.innerHTML = '<td colspan="5">Error fetching message history: ' + error.message + '</td>';
-                    tbody.appendChild(row);
+                    if (tbody) {
+                        tbody.innerHTML = '';
+                        const row = document.createElement('tr');
+                        row.innerHTML = '<td colspan="5">Error fetching message history: ' + error.message + '</td>';
+                        tbody.appendChild(row);
+                    }
                 }
             }
             
