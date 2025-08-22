@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Decentralized Chat Network</title>
+    <title>chatter - the smart decentralized blockchain chat network</title>
     <style>
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 0.9em; /* Make font smaller everywhere */
         }
 
         body {
@@ -62,14 +63,14 @@
         .chat-area {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
+            padding: 10px;
             background: #f8f9fa;
         }
 
         .message {
-            margin-bottom: 15px;
-            padding: 10px 15px;
-            border-radius: 8px;
+            margin-bottom: 5px;
+            padding: 5px 10px;
+            border-radius: 4px;
             max-width: 80%;
             word-wrap: break-word;
         }
@@ -208,7 +209,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Decentralized Chat Network</h1>
+            <h1>chatter - the smart decentralized blockchain chat network</h1>
             <div class="user-info">
                 <input type="text" id="nickname" placeholder="Nickname (optional)">
                 <div class="user-stamp" id="user-stamp">Generating stamp...</div>
@@ -242,7 +243,7 @@
                 <label>
                     <input type="checkbox" id="secret-checkbox"> Secret message
                 </label>
-                <input type="number" id="cache-size" placeholder="Cache size" value="100" min="10" max="1000">
+                <input type="number" id="cache-size" placeholder="Cache size" value="2000" min="10" max="10000">
                 <label>
                     <input type="checkbox" id="store-cache" checked> Store cache
                 </label>
@@ -415,11 +416,20 @@
             // Save session to localStorage
             saveSession() {
                 try {
+                    // Get existing session data if it exists
+                    let existingSession = {};
+                    const existingSessionData = localStorage.getItem('decentralizedChatSession');
+                    if (existingSessionData) {
+                        existingSession = JSON.parse(existingSessionData);
+                    }
+                    
                     this.sessionData = {
                         stamp: this.stamp,
                         nickname: this.nickname,
-                        created: new Date().toISOString(),
-                        lastActive: new Date().toISOString()
+                        created: existingSession.created || new Date().toISOString(),
+                        lastActive: new Date().toISOString(),
+                        messagesSent: existingSession.messagesSent || 0,
+                        messagesReceived: existingSession.messagesReceived || 0
                     };
                     
                     localStorage.setItem('decentralizedChatSession', JSON.stringify(this.sessionData));
@@ -446,6 +456,22 @@
             // Get display name (nickname if available, otherwise stamp)
             getDisplayName() {
                 return this.nickname || this.stamp;
+            }
+            
+            // Increment sent message count
+            incrementSentMessages() {
+                if (this.sessionData) {
+                    this.sessionData.messagesSent = (this.sessionData.messagesSent || 0) + 1;
+                    this.saveSession();
+                }
+            }
+            
+            // Increment received message count
+            incrementReceivedMessages() {
+                if (this.sessionData) {
+                    this.sessionData.messagesReceived = (this.sessionData.messagesReceived || 0) + 1;
+                    this.saveSession();
+                }
             }
         };
 
@@ -564,6 +590,13 @@
                 // Add to chain
                 this.chain.push(newBlock);
                 
+                // Save to localStorage for admin console
+                try {
+                    localStorage.setItem('decentralizedChatBlockchain', JSON.stringify(this.chain));
+                } catch (error) {
+                    console.error('Error saving blockchain to localStorage:', error);
+                }
+                
                 // In a full implementation, this would be distributed to peers
                 console.log('Block added to chain:', newBlock);
                 
@@ -608,7 +641,7 @@
 
         // Cache management
         class CacheManager {
-            constructor(maxSize = 100) {
+            constructor(maxSize = 2000) { // 20 times larger default cache
                 this.maxSize = maxSize;
                 this.cache = new Map(); // messageId -> message
                 this.accessTimes = new Map(); // messageId -> timestamp
@@ -625,6 +658,23 @@
                 // Add message to cache
                 this.cache.set(message.id, message);
                 this.accessTimes.set(message.id, Date.now());
+                
+                // Save cache to localStorage
+                this.saveCacheToLocalStorage();
+            }
+            
+            // Save cache to localStorage
+            saveCacheToLocalStorage() {
+                try {
+                    // Convert Map to object for JSON serialization
+                    const cacheObject = {};
+                    for (const [key, value] of this.cache) {
+                        cacheObject[key] = value;
+                    }
+                    localStorage.setItem('decentralizedChatCache', JSON.stringify(cacheObject));
+                } catch (error) {
+                    console.error('Error saving cache to localStorage:', error);
+                }
             }
             
             // Get message from cache
@@ -690,12 +740,10 @@
                 this.userManager = userManager;
                 this.chatManager = chatManager;
                 this.peers = new Map(); // peerId -> connection
-                this.dataChannels = new Map(); // peerId -> dataChannel
                 this.connectionStatus = 'disconnected'; // disconnected, connecting, connected
-                this.cacheManager = new CacheManager(100); // Default cache size
+                this.cacheManager = new CacheManager(2000); // Default cache size
                 this.blockchain = new ChatBlockchain();
                 this.blockchain.init();
-                this.peerConnections = new Map(); // WebRTC peer connections
                 this.localPeerId = this.userManager.stamp; // Use user stamp as peer ID
             }
             
@@ -752,7 +800,8 @@
                 
                 // Listen for messages from other peers
                 window.addEventListener('storage', (e) => {
-                    if (e.key === 'decentralizedChatMessage') {
+                    // Check if this is a chat message
+                    if (e.key && e.key.startsWith('decentralizedChatMessage-')) {
                         try {
                             const message = JSON.parse(e.newValue);
                             // Only process messages not from ourselves
@@ -769,6 +818,24 @@
                 setInterval(() => {
                     this.discoverPeers();
                 }, 3000);
+                
+                // Periodically send heartbeat to show we're still alive
+                setInterval(() => {
+                    this.sendHeartbeat();
+                }, 5000);
+            }
+            
+            // Send heartbeat to show we're still alive
+            sendHeartbeat() {
+                try {
+                    const peers = JSON.parse(localStorage.getItem('decentralizedChatPeers') || '{}');
+                    if (peers[this.localPeerId]) {
+                        peers[this.localPeerId].lastSeen = Date.now();
+                        localStorage.setItem('decentralizedChatPeers', JSON.stringify(peers));
+                    }
+                } catch (error) {
+                    console.error('Error sending heartbeat:', error);
+                }
             }
             
             // Discover peers from localStorage
@@ -924,15 +991,19 @@
                 // Store message in localStorage for other peers to pick up
                 const messageData = {
                     ...message,
-                    sender: this.localPeerId // Ensure sender is our peer ID
+                    sender: this.localPeerId, // Ensure sender is our peer ID
+                    messageId: Utils.generateId() + '-' + Date.now() // Ensure unique message ID
                 };
                 
                 try {
-                    localStorage.setItem('decentralizedChatMessage', JSON.stringify(messageData));
+                    // Use a unique key for each message to avoid conflicts
+                    const messageKey = 'decentralizedChatMessage-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                    localStorage.setItem(messageKey, JSON.stringify(messageData));
+                    
                     // Clear the message after a short delay to avoid reprocessing
                     setTimeout(() => {
-                        localStorage.removeItem('decentralizedChatMessage');
-                    }, 100);
+                        localStorage.removeItem(messageKey);
+                    }, 500);
                 } catch (error) {
                     console.error('Error sending message to peers:', error);
                 }
@@ -960,6 +1031,9 @@
                 
                 // Pass to chat manager
                 this.chatManager.receiveMessage(message);
+                
+                // Increment received message count
+                this.userManager.incrementReceivedMessages();
             }
             
             // Set cache size
@@ -1082,6 +1156,9 @@
                 if (this.networkManager) {
                     this.networkManager.sendMessage(message);
                 }
+                
+                // Increment sent message count
+                this.userManager.incrementSentMessages();
                 
                 // Reset send button after a short delay
                 setTimeout(() => {
