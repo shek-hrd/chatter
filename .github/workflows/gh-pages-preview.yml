@@ -3,7 +3,7 @@ name: Deploy preview to GitHub Pages
 on:
   push:
     branches:
-      - '**'                # Deploy on any branch push (optional; can restrict to specific branches)
+      - '**'
   pull_request:
     branches:
       - main
@@ -18,37 +18,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # --- PLACEHOLDER: Backend Build (for future) ---
-      # - name: Set up Node.js
-      #   uses: actions/setup-node@v4
-      #   with:
-      #     node-version: '20'
-      # - name: Install backend dependencies
-      #   run: |
-      #     cd backend
-      #     npm install
-      # - name: Build backend
-      #   run: |
-      #     cd backend
-      #     npm run build
-      # - name: (Optional) Run backend tests
-      #   run: |
-      #     cd backend
-      #     npm test
+      # If you do NOT have a build process, use your project root as publish_dir
+      - name: Remove workflow artifacts from output (optional, safer)
+        run: |
+          rm -rf .git .github
 
-      # --- Build Frontend (static) ---
-      # If you have a frontend build step (e.g., npm run build), add it here
-      # Example for static HTML:
-      - name: Prepare static site directory
-        run: mkdir -p ./public && cp -r * ./public/ || true
-
-      # --- Deploy to GitHub Pages ---
-      - name: Deploy branch preview to GitHub Pages
+      # Deploy to GitHub Pages in a branch-specific subdirectory
+      - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./public
+          publish_dir: .
           destination_dir: preview/${{ env.BRANCH_NAME }}
 
-      - name: Output preview URL
-        run: echo "Preview URL: https://shek-hrd.github.io/chatter/preview/${{ env.BRANCH_NAME }}/"
+      - name: Show preview URL
+        run: echo "Preview: https://shek-hrd.github.io/chatter/preview/${{ env.BRANCH_NAME }}/"
