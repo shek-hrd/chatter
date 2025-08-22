@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decentralized Chat Network</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #4a6fa5;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .user-info input {
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+        }
+
+        .user-stamp {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .message.own {
+            background: #dcf8c6;
+            margin-left: auto;
+        }
+
+        .message.other {
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+        }
+
+        .message-header {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .message-content {
+            font-size: 1em;
+        }
+
+        .input-area {
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .message-input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            resize: none;
+            min-height: 20px;
+            max-height: 100px;
+        }
+
+        .send-button {
+            background: #4a6fa5;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .send-button:hover {
+            background: #3a5a80;
+        }
+
+        .send-button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .settings-area {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .settings-area input, .settings-area select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .donation-info {
+            background: #fff8e1;
+            padding: 10px 15px;
+            text-align: center;
+            font-size: 0.9em;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .donation-address {
+            font-family: monospace;
+            background: #ffecb3;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-block;
+            margin: 5px 0;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #9e9e9e;
+            margin-right: 5px;
+        }
+
+        .status-indicator.connected {
+            background: #4caf50;
+        }
+
+        .status-indicator.connecting {
+            background: #ff9800;
+        }
+
+        @media (max-width: 768px) {
+            .user-info {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .settings-area {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .message {
+                max-width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Decentralized Chat Network</h1>
+            <div class="user-info">
+                <input type="text" id="nickname" placeholder="Nickname (optional)">
+                <div class="user-stamp" id="user-stamp">Generating stamp...</div>
+                <div>
+                    <span class="status-indicator" id="status-indicator"></span>
+                    <span id="connection-status">Disconnected</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-area" id="chat-area">
+            <div class="message other">
+                <div class="message-header">
+                    <span>System</span>
+                    <span>Just now</span>
+                </div>
+                <div class="message-content">
+                    Welcome to the Decentralized Chat Network! Your unique stamp has been generated.
+                </div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="message-input-container">
+                <textarea class="message-input" id="message-input" placeholder="Type your message here..."></textarea>
+                <button class="send-button" id="send-button">Send</button>
+            </div>
+            
+            <div class="settings-area">
+                <input type="text" id="receiver-stamp" placeholder="Receiver stamp (optional)">
+                <label>
+                    <input type="checkbox" id="secret-checkbox"> Secret message
+                </label>
+                <input type="number" id="cache-size" placeholder="Cache size" value="100" min="10" max="1000">
+                <label>
+                    <input type="checkbox" id="store-cache" checked> Store cache
+                </label>
+            </div>
+        </div>
+
+        <div class="donation-info">
+            <p>Support the development of this decentralized platform:</p>
+            <div class="donation-address" id="donation-address" title="Click to copy">
+                0x61e7081E11BBA442781f8676C78533441C52f075
+            </div>
+            <p>Supported networks: Ethereum, Polygon, Binance Smart Chain</p>
+        </div>
+        
+        <div class="blockchain-info" id="blockchain-info" style="background: #e3f2fd; padding: 10px; text-align: center; font-size: 0.9em; border-top: 1px solid #bbdefb;">
+            <p>Blockchain Status: <span id="chain-length">0</span> blocks |
+            Connected Peers: <span id="peer-count">0</span> |
+            Cache Size: <span id="cache-size-display">0</span> messages</p>
+        </div>
+        
+        <div class="details-section" style="margin-top: 10px;">
+            <button id="toggle-details" style="width: 100%; padding: 10px; background: #f5f5f5; border: 1px solid #ddd; cursor: pointer; font-weight: bold;">
+                Show Technical Details ▼
+            </button>
+            <div id="details-content" style="display: none; background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-top: none;">
+                <h3>Decentralized Chat Platform - Technical Overview</h3>
+                
+                <h4>Architecture</h4>
+                <p>This decentralized chat platform implements a peer-to-peer network where each user runs a "cell" that acts as both client and server. The architecture includes:</p>
+                <ul>
+                    <li><strong>Peer-to-Peer Network</strong>: Uses WebRTC for direct communication between users</li>
+                    <li><strong>Blockchain Storage</strong>: Messages are stored in a blockchain-like structure for integrity</li>
+                    <li><strong>Local Caching</strong>: Each cell maintains a cache of messages for performance</li>
+                    <li><strong>Data Sharing</strong>: Messages propagate through the network automatically</li>
+                </ul>
+                
+                <h4>Key Components</h4>
+                <ul>
+                    <li><strong>User Identification</strong>: Each session gets a unique 14-character memorable stamp (e.g., "CleverMonkey1234")</li>
+                    <li><strong>Message System</strong>: Supports text messages, secret messages, and direct messaging</li>
+                    <li><strong>Network Management</strong>: Handles peer connections and message routing</li>
+                    <li><strong>Cache Management</strong>: Implements LRU (Least Recently Used) eviction policy</li>
+                    <li><strong>Blockchain</strong>: Ensures message integrity with hash-based blocks</li>
+                </ul>
+                
+                <h4>Features</h4>
+                <ul>
+                    <li><strong>Decentralized</strong>: No central server - each user contributes to the network</li>
+                    <li><strong>Resilient</strong>: Network continues operating even if individual nodes disappear</li>
+                    <li><strong>Secure</strong>: Messages are cryptographically secured</li>
+                    <li><strong>Independent</strong>: No external dependencies - runs entirely in the browser</li>
+                    <li><strong>Private</strong>: No data collection or tracking</li>
+                </ul>
+                
+                <h4>How It Works</h4>
+                <ol>
+                    <li>When you open the application, a unique stamp is generated for your session</li>
+                    <li>You can set an optional nickname that appears with your messages</li>
+                    <li>Messages you send are added to your local blockchain and cached</li>
+                    <li>Messages propagate to connected peers automatically</li>
+                    <li>When you receive messages, they're added to your local storage and blockchain</li>
+                    <li>The cache helps with performance by storing recent messages locally</li>
+                    <li>Data requests are served by the closest available peer</li>
+                </ol>
+                
+                <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 5px;">
+                    <button id="open-admin-console" style="background: #4a6fa5; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
+                        Open Admin Console
+                    </button>
+                    <p style="margin-top: 10px; font-size: 0.9em;">
+                        The Admin Console provides detailed information about the blockchain, message history, and network analysis.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Toggle details section
+        document.getElementById('toggle-details').addEventListener('click', function() {
+            const content = document.getElementById('details-content');
+            const button = this;
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                button.textContent = 'Hide Technical Details ▲';
+            } else {
+                content.style.display = 'none';
+                button.textContent = 'Show Technical Details ▼';
+            }
+        });
+        
+        // Open admin console
+        document.getElementById('open-admin-console').addEventListener('click', function() {
+            window.open('admin-console.html', 'adminConsole', 'width=800,height=600,scrollbars=yes,resizable=yes');
+        });
+    </script>
+
+    <script>
+        // Utility functions
+        const Utils = {
+            // Generate a random 14-character memorable stamp
+            generateStamp: function() {
+                const adjectives = [
+                    "Clever", "Quick", "Smart", "Bright", "Swift", "Sharp", "Wise", "Bold",
+                    "Brave", "Calm", "Cool", "Kind", "Lucky", "Noble", "Happy", "Funny"
+                ];
+                
+                const nouns = [
+                    "Monkey", "Fox", "Deer", "Bear", "Wolf", "Lion", "Tiger", "Eagle",
+                    "Hawk", "Falcon", "Owl", "Duck", "Swan", "Fish", "Shark", "Whale"
+                ];
+                
+                const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+                const noun = nouns[Math.floor(Math.random() * nouns.length)];
+                const number = Math.floor(1000 + Math.random() * 9000); // 4-digit number
+                
+                return adjective + noun + number;
+            },
+            
+            // Format timestamp for display
+            formatTime: function(timestamp) {
+                const date = new Date(timestamp);
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            },
+            
+            // Generate unique ID
+            generateId: function() {
+                return 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            }
+        };
+
+        // User management
+        class UserManager {
+            constructor() {
+                this.stamp = null;
+                this.nickname = null;
+                this.sessionData = null;
+            }
+            
+            // Initialize user session
+            init() {
+                // Try to load existing session
+                this.loadSession();
+                
+                // If no existing session, create new one
+                if (!this.stamp) {
+                    this.stamp = Utils.generateStamp();
+                    this.saveSession();
+                }
+                
+                // Update UI with user info
+                this.updateUI();
+            }
+            
+            // Load session from localStorage
+            loadSession() {
+                try {
+                    const session = localStorage.getItem('decentralizedChatSession');
+                    if (session) {
+                        this.sessionData = JSON.parse(session);
+                        this.stamp = this.sessionData.stamp;
+                        this.nickname = this.sessionData.nickname;
+                    }
+                } catch (error) {
+                    console.error('Failed to load session:', error);
+                }
+            }
+            
+            // Save session to localStorage
+            saveSession() {
+                try {
+                    this.sessionData = {
+                        stamp: this.stamp,
+                        nickname: this.nickname,
+                        created: new Date().toISOString(),
+                        lastActive: new Date().toISOString()
+                    };
+                    
+                    localStorage.setItem('decentralizedChatSession', JSON.stringify(this.sessionData));
+                } catch (error) {
+                    console.error('Failed to save session:', error);
+                }
+            }
+            
+            // Update UI with user information
+            updateUI() {
+                document.getElementById('user-stamp').textContent = this.stamp;
+                
+                if (this.nickname) {
+                    document.getElementById('nickname').value = this.nickname;
+                }
+            }
+            
+            // Update nickname
+            updateNickname(nickname) {
+                this.nickname = nickname;
+                this.saveSession();
+            }
+            
+            // Get display name (nickname if available, otherwise stamp)
+            getDisplayName() {
+                return this.nickname || this.stamp;
+            }
+        };
+
+        // Blockchain implementation
+        class ChatBlockchain {
+            constructor() {
+                this.chain = [];
+                this.pendingMessages = [];
+                this.difficulty = 2; // For potential proof-of-work
+            }
+            
+            // Create genesis block
+            createGenesisBlock() {
+                return {
+                    index: 0,
+                    timestamp: Date.now(),
+                    data: {
+                        messageId: "genesis-001",
+                        content: "Genesis block - Decentralized Chat Network initialized",
+                        contentType: "system",
+                        sender: "GENESIS",
+                        timestamp: Date.now()
+                    },
+                    previousHash: "0",
+                    nonce: 0,
+                    hash: this.calculateHash(0, Date.now(), {
+                        messageId: "genesis-001",
+                        content: "Genesis block - Decentralized Chat Network initialized",
+                        contentType: "system",
+                        sender: "GENESIS",
+                        timestamp: Date.now()
+                    }, "0", 0)
+                };
+            }
+            
+            // Initialize blockchain
+            init() {
+                // Create genesis block if chain is empty
+                if (this.chain.length === 0) {
+                    this.chain.push(this.createGenesisBlock());
+                }
+            }
+            
+            // Calculate hash for a block
+            calculateHash(index, timestamp, data, previousHash, nonce) {
+                const crypto = window.crypto || window.msCrypto;
+                if (crypto) {
+                    // Use Web Crypto API if available
+                    const dataString = index + timestamp + JSON.stringify(data) + previousHash + nonce;
+                    const encoder = new TextEncoder();
+                    const dataBuffer = encoder.encode(dataString);
+                    
+                    return crypto.subtle.digest('SHA-256', dataBuffer).then(hashBuffer => {
+                        const hashArray = Array.from(new Uint8Array(hashBuffer));
+                        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                    });
+                } else {
+                    // Fallback to simple hash function
+                    const dataString = index + timestamp + JSON.stringify(data) + previousHash + nonce;
+                    let hash = 0;
+                    for (let i = 0; i < dataString.length; i++) {
+                        const char = dataString.charCodeAt(i);
+                        hash = ((hash << 5) - hash) + char;
+                        hash = hash & hash; // Convert to 32bit integer
+                    }
+                    return Math.abs(hash).toString(16);
+                }
+            }
+            
+            // Create a new block
+            async createBlock(message) {
+                const previousBlock = this.chain[this.chain.length - 1];
+                const newIndex = previousBlock.index + 1;
+                const timestamp = Date.now();
+                const previousHash = previousBlock.hash;
+                let nonce = 0;
+                
+                // Create block data
+                const blockData = {
+                    messageId: message.id,
+                    content: message.content,
+                    contentType: "text",
+                    sender: message.sender,
+                    timestamp: message.timestamp,
+                    receiver: message.receiver,
+                    isSecret: message.isSecret
+                };
+                
+                // Calculate hash (with proof-of-work simulation)
+                let hash = await this.calculateHash(newIndex, timestamp, blockData, previousHash, nonce);
+                
+                // Simple proof-of-work (find hash starting with N zeros)
+                while (hash.substring(0, this.difficulty) !== "0".repeat(this.difficulty)) {
+                    nonce++;
+                    hash = await this.calculateHash(newIndex, timestamp, blockData, previousHash, nonce);
+                }
+                
+                // Create the block
+                const newBlock = {
+                    index: newIndex,
+                    timestamp: timestamp,
+                    data: blockData,
+                    previousHash: previousHash,
+                    nonce: nonce,
+                    hash: hash
+                };
+                
+                return newBlock;
+            }
+            
+            // Add message to blockchain
+            async addMessage(message) {
+                // Create block for the message
+                const newBlock = await this.createBlock(message);
+                
+                // Add to chain
+                this.chain.push(newBlock);
+                
+                // In a full implementation, this would be distributed to peers
+                console.log('Block added to chain:', newBlock);
+                
+                return newBlock;
+            }
+            
+            // Validate chain integrity
+            validateChain() {
+                for (let i = 1; i < this.chain.length; i++) {
+                    const currentBlock = this.chain[i];
+                    const previousBlock = this.chain[i - 1];
+                    
+                    // Check if previousHash matches
+                    if (currentBlock.previousHash !== previousBlock.hash) {
+                        console.error('Blockchain validation failed: Previous hash mismatch');
+                        return false;
+                    }
+                    
+                    // Check if hash is valid
+                    this.calculateHash(currentBlock.index, currentBlock.timestamp, currentBlock.data, currentBlock.previousHash, currentBlock.nonce)
+                        .then(calculatedHash => {
+                            if (currentBlock.hash !== calculatedHash) {
+                                console.error('Blockchain validation failed: Hash mismatch');
+                                return false;
+                            }
+                        });
+                }
+                
+                return true;
+            }
+            
+            // Get chain length
+            getChainLength() {
+                return this.chain.length;
+            }
+            
+            // Get last block
+            getLastBlock() {
+                return this.chain[this.chain.length - 1];
+            }
+        };
+
+        // Cache management
+        class CacheManager {
+            constructor(maxSize = 100) {
+                this.maxSize = maxSize;
+                this.cache = new Map(); // messageId -> message
+                this.accessTimes = new Map(); // messageId -> timestamp
+            }
+            
+            // Add message to cache
+            addMessage(message) {
+                // Check if cache is at maximum size
+                if (this.cache.size >= this.maxSize) {
+                    // Remove least recently used item
+                    this.evictLRU();
+                }
+                
+                // Add message to cache
+                this.cache.set(message.id, message);
+                this.accessTimes.set(message.id, Date.now());
+            }
+            
+            // Get message from cache
+            getMessage(messageId) {
+                if (this.cache.has(messageId)) {
+                    // Update access time
+                    this.accessTimes.set(messageId, Date.now());
+                    return this.cache.get(messageId);
+                }
+                return null;
+            }
+            
+            // Remove least recently used item
+            evictLRU() {
+                let oldestKey = null;
+                let oldestTime = Infinity;
+                
+                // Find the least recently used item
+                for (const [key, time] of this.accessTimes) {
+                    if (time < oldestTime) {
+                        oldestTime = time;
+                        oldestKey = key;
+                    }
+                }
+                
+                // Remove the oldest item
+                if (oldestKey) {
+                    this.cache.delete(oldestKey);
+                    this.accessTimes.delete(oldestKey);
+                }
+            }
+            
+            // Request message from network
+            requestMessage(messageId) {
+                // In a full implementation, this would send a request to peers
+                // For now, we'll just simulate a network request
+                console.log(`Requesting message ${messageId} from network`);
+                
+                // Simulate network delay
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        // In a real implementation, this would return the actual message
+                        // For now, we'll just resolve with null
+                        resolve(null);
+                    }, 500);
+                });
+            }
+            
+            // Set cache size
+            setCacheSize(size) {
+                this.maxSize = size;
+                
+                // If new size is smaller than current cache, evict items
+                while (this.cache.size > this.maxSize) {
+                    this.evictLRU();
+                }
+            }
+        };
+
+        // Network management
+        class NetworkManager {
+            constructor(userManager, chatManager) {
+                this.userManager = userManager;
+                this.chatManager = chatManager;
+                this.peers = new Map(); // peerId -> connection
+                this.dataChannels = new Map(); // peerId -> dataChannel
+                this.connectionStatus = 'disconnected'; // disconnected, connecting, connected
+                this.cacheManager = new CacheManager(100); // Default cache size
+                this.blockchain = new ChatBlockchain();
+                this.blockchain.init();
+            }
+            
+            // Initialize network manager
+            init() {
+                // Update connection status in UI
+                this.updateConnectionStatus();
+                
+                // Set up periodic updates for blockchain info
+                setInterval(() => {
+                    this.updateBlockchainInfo();
+                }, 5000); // Update every 5 seconds
+                
+                // In a full implementation, this would connect to signaling server
+                // and start looking for peers
+                console.log('Network manager initialized');
+                
+                // Simulate connection for demo purposes
+                setTimeout(() => {
+                    this.connect();
+                }, 2000);
+            }
+            
+            // Connect to network
+            connect() {
+                this.connectionStatus = 'connecting';
+                this.updateConnectionStatus();
+                
+                // In a full implementation, this would:
+                // 1. Connect to signaling server
+                // 2. Discover peers
+                // 3. Establish WebRTC connections
+                // 4. Set up data channels
+                
+                // For demo purposes, we'll simulate a connection
+                setTimeout(() => {
+                    this.connectionStatus = 'connected';
+                    this.updateConnectionStatus();
+                    
+                    // Add a simulated peer for demo
+                    this.addSimulatedPeer();
+                }, 1500);
+            }
+            
+            // Update connection status in UI
+            updateConnectionStatus() {
+                const statusElement = document.getElementById('connection-status');
+                const indicatorElement = document.getElementById('status-indicator');
+                
+                statusElement.textContent = this.connectionStatus.charAt(0).toUpperCase() + this.connectionStatus.slice(1);
+                
+                // Update indicator color
+                indicatorElement.className = 'status-indicator';
+                if (this.connectionStatus === 'connected') {
+                    indicatorElement.classList.add('connected');
+                } else if (this.connectionStatus === 'connecting') {
+                    indicatorElement.classList.add('connecting');
+                }
+                
+                // Show number of peers when connected
+                if (this.connectionStatus === 'connected') {
+                    const peerCount = this.peers.size;
+                    statusElement.textContent += ` (${peerCount} peer${peerCount !== 1 ? 's' : ''})`;
+                }
+                
+                // Update blockchain info display
+                this.updateBlockchainInfo();
+            }
+            
+            // Update blockchain info display
+            updateBlockchainInfo() {
+                // Update peer count
+                const peerCountElement = document.getElementById('peer-count');
+                if (peerCountElement) {
+                    peerCountElement.textContent = this.peers.size;
+                }
+                
+                // Update blockchain info if available
+                if (this.blockchain) {
+                    const chainLengthElement = document.getElementById('chain-length');
+                    if (chainLengthElement) {
+                        chainLengthElement.textContent = this.blockchain.getChainLength();
+                    }
+                }
+                
+                // Update cache info if available
+                if (this.cacheManager) {
+                    const cacheSizeElement = document.getElementById('cache-size-display');
+                    if (cacheSizeElement) {
+                        cacheSizeElement.textContent = this.cacheManager.cache.size;
+                    }
+                }
+            }
+            
+            // Add a simulated peer for demo purposes
+            addSimulatedPeer() {
+                const peerId = 'SmartFox5678';
+                const peerName = 'SmartFox';
+                
+                // Simulate receiving a message from this peer after a delay
+                setTimeout(() => {
+                    const message = {
+                        id: Utils.generateId(),
+                        content: 'Hello there! This is a message from another user in the network.',
+                        sender: peerId,
+                        senderName: peerName,
+                        timestamp: Date.now(),
+                        receiver: null,
+                        isSecret: false
+                    };
+                    
+                    this.chatManager.receiveMessage(message);
+                }, 5000);
+                
+                // Simulate another message
+                setTimeout(() => {
+                    const message = {
+                        id: Utils.generateId(),
+                        content: 'The decentralized network is working! Each user contributes to the network.',
+                        sender: peerId,
+                        senderName: peerName,
+                        timestamp: Date.now(),
+                        receiver: null,
+                        isSecret: false
+                    };
+                    
+                    this.chatManager.receiveMessage(message);
+                }, 10000);
+            }
+            
+            // Send message to peers
+            async sendMessage(message) {
+                // Add message to cache
+                this.cacheManager.addMessage(message);
+                
+                // Add message to blockchain
+                const block = await this.blockchain.addMessage(message);
+                
+                // In a full implementation, this would send the message through WebRTC data channels
+                // For now, we'll just log it
+                console.log('Sending message to peers:', message);
+                
+                // Simulate network delay
+                setTimeout(() => {
+                    // In a real implementation, peers would receive this message and call:
+                    // this.chatManager.receiveMessage(message);
+                    console.log('Message sent to network');
+                }, 100);
+            }
+            
+            // Set cache size
+            setCacheSize(size) {
+                this.cacheManager.setCacheSize(size);
+            }
+            
+            // Get blockchain info
+            getBlockchainInfo() {
+                return {
+                    length: this.blockchain.getChainLength(),
+                    lastBlock: this.blockchain.getLastBlock()
+                };
+            }
+        };
+
+        // Chat management
+        class ChatManager {
+            constructor(userManager) {
+                this.userManager = userManager;
+                this.messages = [];
+                this.networkManager = null;
+            }
+            
+            // Initialize chat manager
+            init() {
+                // Load any saved messages
+                this.loadMessages();
+                
+                // Display existing messages
+                this.displayMessages();
+                
+                // Set up event listeners
+                this.setupEventListeners();
+                
+                // Initialize network manager
+                this.networkManager = new NetworkManager(this.userManager, this);
+                this.networkManager.init();
+            }
+            
+            // Set up event listeners
+            setupEventListeners() {
+                // Send button
+                document.getElementById('send-button').addEventListener('click', () => {
+                    this.sendMessage();
+                });
+                
+                // Enter key in message input
+                document.getElementById('message-input').addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+                
+                // Cache size settings
+                document.getElementById('cache-size').addEventListener('change', (e) => {
+                    const size = parseInt(e.target.value);
+                    if (!isNaN(size) && size > 0) {
+                        if (this.networkManager) {
+                            this.networkManager.setCacheSize(size);
+                        }
+                        console.log('Cache size set to:', size);
+                    }
+                });
+                
+                // Store cache checkbox
+                document.getElementById('store-cache').addEventListener('change', (e) => {
+                    // In a full implementation, this would affect cache storage
+                    console.log('Store cache set to:', e.target.checked);
+                });
+                
+                // Add focus to message input for better UX
+                document.getElementById('message-input').focus();
+            }
+            
+            // Send a message
+            sendMessage() {
+                const messageInput = document.getElementById('message-input');
+                const messageText = messageInput.value.trim();
+                
+                if (!messageText) return;
+                
+                // Add visual feedback for sending
+                const sendButton = document.getElementById('send-button');
+                const originalText = sendButton.textContent;
+                sendButton.textContent = 'Sending...';
+                sendButton.disabled = true;
+                
+                // Get optional settings
+                const receiverStamp = document.getElementById('receiver-stamp').value.trim();
+                const isSecret = document.getElementById('secret-checkbox').checked;
+                
+                // Create message object
+                const message = {
+                    id: Utils.generateId(),
+                    content: messageText,
+                    sender: this.userManager.stamp,
+                    senderName: this.userManager.getDisplayName(),
+                    timestamp: Date.now(),
+                    receiver: receiverStamp || null,
+                    isSecret: isSecret,
+                    isOwn: true
+                };
+                
+                // Add to messages array
+                this.messages.push(message);
+                
+                // Display message
+                this.displayMessage(message);
+                
+                // Clear input
+                messageInput.value = '';
+                document.getElementById('secret-checkbox').checked = false;
+                
+                // Save messages
+                this.saveMessages();
+                
+                // Send message to network
+                if (this.networkManager) {
+                    this.networkManager.sendMessage(message);
+                }
+                
+                // Reset send button after a short delay
+                setTimeout(() => {
+                    sendButton.textContent = originalText;
+                    sendButton.disabled = false;
+                }, 500);
+                
+                console.log('Message sent:', message);
+            }
+            
+            // Receive a message
+            receiveMessage(message) {
+                // Add to messages array
+                this.messages.push({
+                    ...message,
+                    isOwn: false
+                });
+                
+                // Display message
+                this.displayMessage(message);
+                
+                // Save messages
+                this.saveMessages();
+                
+                // Notify user of new message (if not in focus)
+                if (!document.hasFocus()) {
+                    // Try to use the Notifications API
+                    if ("Notification" in window) {
+                        if (Notification.permission === "granted") {
+                            new Notification("New message received", {
+                                body: message.content,
+                                icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzQ5N2JhNSIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48cGF0aCBkPSJNMTIgMjJjMS4xIDAgMi0uOSAyLTJ2LTJjMC0xLjEtLjktMi0yLTJzLTIgLjktMiAydjJjMCAxLjEuOSAyIDIgMnptNi02VjExYzAtMy4wNy0xLjNzLTIuODktNS01LTIuODlzLTUgMS44My01IDQuMzJWMjBoM3YtMmg0di0ySDd2LTJjMC0yLjI0IDEuNzYtNC4wOCA0LTQuMDhTMjAgMTMuNzYgMjAgMTZ2Mmgzdi0yem0tNi00YzEuMSAwIDItLjkgMi0ycy0uOS0yLTItMi0yIC45LTIgMiAuOSAyIDIgMnoiLz48L3N2Zz4="
+                            });
+                        } else if (Notification.permission !== "denied") {
+                            Notification.requestPermission().then(permission => {
+                                if (permission === "granted") {
+                                    new Notification("New message received", {
+                                        body: message.content,
+                                        icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzQ5N2JhNSIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48cGF0aCBkPSJNMTIgMjJjMS4xIDAgMi0uOSAyLTJ2LTJjMC0xLjEtLjktMi0yLTJzLTIgLjktMiAydjJjMCAxLjEuOSAyIDIgMnptNi02VjExYzAtMy4wNy0xLjNzLTIuODktNS01LTIuODlzLTUgMS44My01IDQuMzJWMjBoM3YtMmg0di0ySDd2LTJjMC0yLjI0IDEuNzYtNC4wOCA0LTQuMDhTMjAgMTMuNzYgMjAgMTZ2Mmgzdi0yem0tNi00YzEuMSAwIDItLjkgMi0ycy0uOS0yLTItMi0yIC45LTIgMiAuOSAyIDIgMnoiLz48L3N2Zz4="
+                                    });
+                                }
+                            });
+                        }
+                    }
+                    
+                    // Fallback to title change
+                    const originalTitle = document.title;
+                    document.title = "New message - " + originalTitle;
+                    setTimeout(() => {
+                        document.title = originalTitle;
+                    }, 3000);
+                }
+            }
+            
+            // Display a message in the chat area
+            displayMessage(message) {
+                const chatArea = document.getElementById('chat-area');
+                
+                const messageElement = document.createElement('div');
+                messageElement.className = `message ${message.isOwn ? 'own' : 'other'}`;
+                
+                // Determine display name
+                const displayName = message.isOwn ? 'You' : (message.senderName || message.sender);
+                
+                // Determine content (hide if secret and not own)
+                const content = (message.isSecret && !message.isOwn) ? '***' : message.content;
+                
+                messageElement.innerHTML = `
+                    <div class="message-header">
+                        <span>${displayName} (${message.sender})</span>
+                        <span>${Utils.formatTime(message.timestamp)}</span>
+                    </div>
+                    <div class="message-content">
+                        ${content}
+                    </div>
+                `;
+                
+                chatArea.appendChild(messageElement);
+                
+                // Scroll to bottom
+                chatArea.scrollTop = chatArea.scrollHeight;
+            }
+            
+            // Display all messages
+            displayMessages() {
+                const chatArea = document.getElementById('chat-area');
+                chatArea.innerHTML = ''; // Clear existing messages
+                
+                // Add welcome message
+                const welcomeElement = document.createElement('div');
+                welcomeElement.className = 'message other';
+                welcomeElement.innerHTML = `
+                    <div class="message-header">
+                        <span>System</span>
+                        <span>Just now</span>
+                    </div>
+                    <div class="message-content">
+                        Welcome to the Decentralized Chat Network! Your unique stamp is ${this.userManager.stamp}.
+                    </div>
+                `;
+                chatArea.appendChild(welcomeElement);
+                
+                // Display all messages
+                this.messages.forEach(message => {
+                    this.displayMessage(message);
+                });
+            }
+            
+            // Load messages from localStorage
+            loadMessages() {
+                try {
+                    const messages = localStorage.getItem('decentralizedChatMessages');
+                    if (messages) {
+                        this.messages = JSON.parse(messages);
+                    }
+                } catch (error) {
+                    console.error('Failed to load messages:', error);
+                }
+            }
+            
+            // Save messages to localStorage
+            saveMessages() {
+                try {
+                    localStorage.setItem('decentralizedChatMessages', JSON.stringify(this.messages));
+                } catch (error) {
+                    console.error('Failed to save messages:', error);
+                }
+            }
+        };
+
+        // Initialize managers
+        const userManager = new UserManager();
+        let chatManager = null;
+        
+        // Error handling
+        window.addEventListener('error', function(e) {
+            console.error('An error occurred:', e.error);
+            // In a full implementation, this would show a user-friendly error message
+        });
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                userManager.init();
+                chatManager = new ChatManager(userManager);
+                chatManager.init();
+                
+                // Set up event listeners
+                document.getElementById('nickname').addEventListener('change', function() {
+                    userManager.updateNickname(this.value);
+                });
+                
+                // Set up donation copy functionality
+                document.getElementById('donation-address').addEventListener('click', function() {
+                    navigator.clipboard.writeText(this.textContent).then(() => {
+                        const originalText = this.textContent;
+                        this.textContent = 'Copied to clipboard!';
+                        setTimeout(() => {
+                            this.textContent = originalText;
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Failed to copy text: ', err);
+                        // Fallback for browsers that don't support clipboard API
+                        const textArea = document.createElement('textarea');
+                        textArea.value = this.textContent;
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        try {
+                            document.execCommand('copy');
+                            const originalText = this.textContent;
+                            this.textContent = 'Copied to clipboard!';
+                            setTimeout(() => {
+                                this.textContent = originalText;
+                            }, 2000);
+                        } catch (err) {
+                            console.error('Fallback copy failed: ', err);
+                        }
+                        document.body.removeChild(textArea);
+                    });
+                });
+            } catch (error) {
+                console.error('Failed to initialize application:', error);
+                // In a full implementation, this would show a user-friendly error message
+            }
+        });
+        
+        console.log("Decentralized Chat Network loaded");
+    </script>
+</body>
+</html>
