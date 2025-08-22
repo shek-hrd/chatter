@@ -65,6 +65,9 @@
             overflow-y: auto;
             padding: 10px;
             background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
         }
 
         .message {
@@ -73,6 +76,9 @@
             border-radius: 4px;
             max-width: 80%;
             word-wrap: break-word;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .message.own {
@@ -1114,6 +1120,12 @@
             sendMessage() {
                 const messageInput = document.getElementById('message-input');
                 const messageText = messageInput.value.trim();
+                
+                // Limit message size to 536 characters
+                if (messageText.length > 536) {
+                    alert('Message is too long. Please limit to 536 characters.');
+                    return;
+                }
                 
                 if (!messageText) return;
                 
