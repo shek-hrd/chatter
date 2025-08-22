@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decentralized Chat Admin Console</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #4a6fa5;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .tab {
+            padding: 15px 20px;
+            cursor: pointer;
+            background: #e0e0e0;
+            border-right: 1px solid #ddd;
+        }
+
+        .tab.active {
+            background: white;
+            border-bottom: 3px solid #4a6fa5;
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .panel {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+
+        .panel h3 {
+            margin-top: 0;
+            color: #4a6fa5;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background: #e3f2fd;
+        }
+
+        tr:nth-child(even) {
+            background: #f5f5f5;
+        }
+
+        .blockchain-view {
+            font-family: monospace;
+            white-space: pre-wrap;
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .refresh-btn {
+            background: #4a6fa5;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .refresh-btn:hover {
+            background: #3a5a80;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #9e9e9e;
+            margin-right: 5px;
+        }
+
+        .status-indicator.connected {
+            background: #4caf50;
+        }
+
+        .status-indicator.connecting {
+            background: #ff9800;
+        }
+
+        .json-display {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Decentralized Chat Admin Console</h1>
+            <div>
+                <span class="status-indicator" id="admin-status-indicator"></span>
+                <span id="admin-connection-status">Connected</span>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="blockchain">Blockchain</div>
+            <div class="tab" data-tab="history">Message History</div>
+            <div class="tab" data-tab="network">Network Analysis</div>
+        </div>
+
+        <div class="tab-content active" id="blockchain-tab">
+            <button class="refresh-btn" id="refresh-blockchain">Refresh Blockchain</button>
+            <div class="panel">
+                <h3>Blockchain Information</h3>
+                <p>Chain Length: <span id="chain-length">0</span> blocks</p>
+                <p>Last Block Hash: <span id="last-block-hash">N/A</span></p>
+                <p>Genesis Block: <span id="genesis-block">N/A</span></p>
+            </div>
+            
+            <div class="panel">
+                <h3>Blockchain Structure</h3>
+                <div class="blockchain-view" id="blockchain-structure">
+                    Blockchain data will appear here after refresh
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="history-tab">
+            <button class="refresh-btn" id="refresh-history">Refresh History</button>
+            <div class="panel">
+                <h3>Message History</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Sender</th>
+                            <th>Content</th>
+                            <th>Timestamp</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody id="message-history">
+                        <tr>
+                            <td colspan="5">No messages found</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="tab-content" id="network-tab">
+            <button class="refresh-btn" id="refresh-network">Refresh Network</button>
+            <div class="panel">
+                <h3>Network Status</h3>
+                <p>Connection Status: <span id="network-status">Connected</span></p>
+                <p>Connected Peers: <span id="connected-peers">0</span></p>
+                <p>Network Latency: <span id="network-latency">N/A</span></p>
+            </div>
+            
+            <div class="panel">
+                <h3>Peer Information</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Peer Stamp</th>
+                            <th>Status</th>
+                            <th>Last Active</th>
+                            <th>Messages Sent</th>
+                        </tr>
+                    </thead>
+                    <tbody id="peer-info">
+                        <tr>
+                            <td colspan="4">No peer information available</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="panel">
+                <h3>Cache Information</h3>
+                <p>Cache Size: <span id="cache-size">0</span> messages</p>
+                <p>Cache Utilization: <span id="cache-utilization">0%</span></p>
+                <div class="json-display" id="cache-contents">
+                    Cache contents will appear here after refresh
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Admin console functionality
+        class AdminConsole {
+            constructor() {
+                this.init();
+            }
+            
+            init() {
+                // Set up tab navigation
+                this.setupTabs();
+                
+                // Set up refresh buttons
+                this.setupRefreshButtons();
+                
+                // Initial data load
+                this.refreshAll();
+                
+                // Set up periodic updates
+                setInterval(() => {
+                    this.updateStatus();
+                }, 5000);
+            }
+            
+            setupTabs() {
+                const tabs = document.querySelectorAll('.tab');
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        // Remove active class from all tabs and content
+                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                        
+                        // Add active class to clicked tab
+                        tab.classList.add('active');
+                        
+                        // Show corresponding content
+                        const tabId = tab.getAttribute('data-tab');
+                        document.getElementById(`${tabId}-tab`).classList.add('active');
+                    });
+                });
+            }
+            
+            setupRefreshButtons() {
+                document.getElementById('refresh-blockchain').addEventListener('click', () => {
+                    this.refreshBlockchain();
+                });
+                
+                document.getElementById('refresh-history').addEventListener('click', () => {
+                    this.refreshHistory();
+                });
+                
+                document.getElementById('refresh-network').addEventListener('click', () => {
+                    this.refreshNetwork();
+                });
+            }
+            
+            refreshAll() {
+                this.refreshBlockchain();
+                this.refreshHistory();
+                this.refreshNetwork();
+            }
+            
+            refreshBlockchain() {
+                // In a real implementation, this would fetch blockchain data
+                // For now, we'll simulate it
+                document.getElementById('chain-length').textContent = Math.floor(Math.random() * 100) + 1;
+                document.getElementById('last-block-hash').textContent = 'a1b2c3d4e5f6...' + Math.random().toString(36).substr(2, 8);
+                document.getElementById('genesis-block').textContent = '0x000000000000...';
+                
+                // Simulate blockchain structure
+                const blockchainStructure = `{
+  "chain": [
+    {
+      "index": 0,
+      "timestamp": 1628784000000,
+      "data": {
+        "messageId": "genesis-001",
+        "content": "Genesis block - Decentralized Chat Network initialized",
+        "contentType": "system",
+        "sender": "GENESIS"
+      },
+      "previousHash": "0",
+      "hash": "0x000000000000..."
+    },
+    {
+      "index": 1,
+      "timestamp": 1628784060000,
+      "data": {
+        "messageId": "msg-1234567890",
+        "content": "Hello everyone!",
+        "contentType": "text",
+        "sender": "CleverMonkey1234"
+      },
+      "previousHash": "0x000000000000...",
+      "hash": "0xa1b2c3d4e5f6..."
+    }
+  ]
+}`;
+                
+                document.getElementById('blockchain-structure').textContent = blockchainStructure;
+            }
+            
+            refreshHistory() {
+                // In a real implementation, this would fetch message history
+                // For now, we'll simulate it
+                const tbody = document.getElementById('message-history');
+                tbody.innerHTML = '';
+                
+                // Add some simulated messages
+                const messages = [
+                    {
+                        id: 'msg-1234567890',
+                        sender: 'CleverMonkey1234',
+                        content: 'Hello everyone!',
+                        timestamp: '2025-08-22 10:00:00',
+                        type: 'text'
+                    },
+                    {
+                        id: 'msg-0987654321',
+                        sender: 'SmartFox5678',
+                        content: 'Hi there!',
+                        timestamp: '2025-08-22 10:01:30',
+                        type: 'text'
+                    },
+                    {
+                        id: 'msg-1122334455',
+                        sender: 'QuickDeer9012',
+                        content: '***',
+                        timestamp: '2025-08-22 10:02:15',
+                        type: 'secret'
+                    }
+                ];
+                
+                messages.forEach(msg => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${msg.id}</td>
+                        <td>${msg.sender}</td>
+                        <td>${msg.content}</td>
+                        <td>${msg.timestamp}</td>
+                        <td>${msg.type}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+                // If no messages, show a message
+                if (messages.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="5">No messages found</td>';
+                    tbody.appendChild(row);
+                }
+            }
+            
+            refreshNetwork() {
+                // In a real implementation, this would fetch network data
+                // For now, we'll simulate it
+                document.getElementById('network-status').textContent = 'Connected';
+                document.getElementById('connected-peers').textContent = Math.floor(Math.random() * 10) + 1;
+                document.getElementById('network-latency').textContent = Math.floor(Math.random() * 100) + 'ms';
+                document.getElementById('cache-size').textContent = Math.floor(Math.random() * 50) + 10;
+                document.getElementById('cache-utilization').textContent = Math.floor(Math.random() * 100) + '%';
+                
+                // Simulate peer information
+                const tbody = document.getElementById('peer-info');
+                tbody.innerHTML = '';
+                
+                const peers = [
+                    {
+                        stamp: 'SmartFox5678',
+                        status: 'Connected',
+                        lastActive: '2025-08-22 10:05:00',
+                        messagesSent: 12
+                    },
+                    {
+                        stamp: 'QuickDeer9012',
+                        status: 'Connected',
+                        lastActive: '2025-08-22 10:03:45',
+                        messagesSent: 8
+                    }
+                ];
+                
+                peers.forEach(peer => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${peer.stamp}</td>
+                        <td>${peer.status}</td>
+                        <td>${peer.lastActive}</td>
+                        <td>${peer.messagesSent}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+                // If no peers, show a message
+                if (peers.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="4">No peer information available</td>';
+                    tbody.appendChild(row);
+                }
+                
+                // Simulate cache contents
+                const cacheContents = `{
+  "messages": [
+    {
+      "id": "msg-1234567890",
+      "content": "Hello everyone!",
+      "sender": "CleverMonkey1234",
+      "timestamp": 1628784000000
+    },
+    {
+      "id": "msg-0987654321",
+      "content": "Hi there!",
+      "sender": "SmartFox5678",
+      "timestamp": 1628784090000
+    }
+  ],
+  "accessTimes": {
+    "msg-1234567890": 1628784100000,
+    "msg-0987654321": 1628784095000
+  }
+}`;
+                
+                document.getElementById('cache-contents').textContent = cacheContents;
+            }
+            
+            updateStatus() {
+                // Update connection status indicator
+                const statusIndicator = document.getElementById('admin-status-indicator');
+                const statusText = document.getElementById('admin-connection-status');
+                
+                statusIndicator.className = 'status-indicator connected';
+                statusText.textContent = 'Connected';
+            }
+        }
+
+        // Initialize admin console when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const adminConsole = new AdminConsole();
+        });
+    </script>
+</body>
+</html>
