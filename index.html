@@ -264,10 +264,10 @@
         </div>
         
         <div class="details-section" style="margin-top: 10px;">
-            <button id="toggle-details" style="width: 100%; padding: 10px; background: #f5f5f5; border: 1px solid #ddd; cursor: pointer; font-weight: bold;">
+            <button id="toggle-details" style="width: 100%; padding: 10px; background: #f5f5f5; border: 1px solid #ddd; cursor: pointer; font-weight: bold; font-size: 0.9em;">
                 Show Technical Details ▼
             </button>
-            <div id="details-content" style="display: none; background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-top: none;">
+            <div id="details-content" style="display: none; background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-top: none; font-size: 0.85em;">
                 <h3>Decentralized Chat Platform - Technical Overview</h3>
                 
                 <h4>Architecture</h4>
@@ -309,7 +309,7 @@
                 </ol>
                 
                 <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 5px;">
-                    <button id="open-admin-console" style="background: #4a6fa5; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
+                    <button id="open-admin-console" style="background: #4a6fa5; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 0.9em;">
                         Open Admin Console
                     </button>
                     <p style="margin-top: 10px; font-size: 0.9em;">
@@ -695,6 +695,8 @@
                 this.cacheManager = new CacheManager(100); // Default cache size
                 this.blockchain = new ChatBlockchain();
                 this.blockchain.init();
+                this.peerConnections = new Map(); // WebRTC peer connections
+                this.localPeerId = this.userManager.stamp; // Use user stamp as peer ID
             }
             
             // Initialize network manager
@@ -707,11 +709,10 @@
                     this.updateBlockchainInfo();
                 }, 5000); // Update every 5 seconds
                 
-                // In a full implementation, this would connect to signaling server
-                // and start looking for peers
+                // Try to connect to peers
                 console.log('Network manager initialized');
                 
-                // Simulate connection for demo purposes
+                // Start connection process
                 setTimeout(() => {
                     this.connect();
                 }, 2000);
@@ -722,20 +723,135 @@
                 this.connectionStatus = 'connecting';
                 this.updateConnectionStatus();
                 
-                // In a full implementation, this would:
+                // In a real implementation, this would:
                 // 1. Connect to signaling server
                 // 2. Discover peers
                 // 3. Establish WebRTC connections
                 // 4. Set up data channels
                 
-                // For demo purposes, we'll simulate a connection
+                // For this implementation, we'll simulate a simple peer discovery
+                // and connection mechanism using localStorage as a simple signaling server
+                this.setupSimpleSignaling();
+                
+                // After a delay, mark as connected
                 setTimeout(() => {
                     this.connectionStatus = 'connected';
                     this.updateConnectionStatus();
-                    
-                    // Add a simulated peer for demo
-                    this.addSimulatedPeer();
                 }, 1500);
+            }
+            
+            // Set up simple signaling using localStorage
+            setupSimpleSignaling() {
+                // Register this peer in localStorage
+                const peers = JSON.parse(localStorage.getItem('decentralizedChatPeers') || '{}');
+                peers[this.localPeerId] = {
+                    stamp: this.localPeerId,
+                    lastSeen: Date.now()
+                };
+                localStorage.setItem('decentralizedChatPeers', JSON.stringify(peers));
+                
+                // Listen for messages from other peers
+                window.addEventListener('storage', (e) => {
+                    if (e.key === 'decentralizedChatMessage') {
+                        try {
+                            const message = JSON.parse(e.newValue);
+                            // Only process messages not from ourselves
+                            if (message.sender !== this.localPeerId) {
+                                this.handleIncomingMessage(message);
+                            }
+                        } catch (error) {
+                            console.error('Error parsing incoming message:', error);
+                        }
+                    }
+                });
+                
+                // Periodically check for new peers
+                setInterval(() => {
+                    this.discoverPeers();
+                }, 3000);
+            }
+            
+            // Discover peers from localStorage
+            discoverPeers() {
+                try {
+                    const peers = JSON.parse(localStorage.getItem('decentralizedChatPeers') || '{}');
+                    const now = Date.now();
+                    
+                    // Check for new peers
+                    for (const [peerId, peerInfo] of Object.entries(peers)) {
+                        // Skip our own peer ID
+                        if (peerId === this.localPeerId) continue;
+                        
+                        // Check if peer is still active (seen in last 10 seconds)
+                        if (now - peerInfo.lastSeen < 10000) {
+                            // Add peer if not already known
+                            if (!this.peers.has(peerId)) {
+                                this.addPeer(peerId, peerInfo);
+                            }
+                        } else {
+                            // Remove inactive peer
+                            if (this.peers.has(peerId)) {
+                                this.removePeer(peerId);
+                            }
+                        }
+                    }
+                    
+                    // Update our own last seen time
+                    const ourPeers = JSON.parse(localStorage.getItem('decentralizedChatPeers') || '{}');
+                    if (ourPeers[this.localPeerId]) {
+                        ourPeers[this.localPeerId].lastSeen = now;
+                        localStorage.setItem('decentralizedChatPeers', JSON.stringify(ourPeers));
+                    }
+                } catch (error) {
+                    console.error('Error discovering peers:', error);
+                }
+            }
+            
+            // Add a peer
+            addPeer(peerId, peerInfo) {
+                this.peers.set(peerId, peerInfo);
+                console.log(`Added peer: ${peerId}`);
+                
+                // Send a connect message to the chat
+                const connectMessage = {
+                    id: Utils.generateId(),
+                    content: `${peerInfo.stamp} has joined the network`,
+                    sender: 'SYSTEM',
+                    senderName: 'System',
+                    timestamp: Date.now(),
+                    receiver: null,
+                    isSecret: false,
+                    isOwn: false,
+                    isSystem: true
+                };
+                
+                this.chatManager.receiveMessage(connectMessage);
+                this.updateConnectionStatus();
+            }
+            
+            // Remove a peer
+            removePeer(peerId) {
+                if (this.peers.has(peerId)) {
+                    const peerInfo = this.peers.get(peerId);
+                    this.peers.delete(peerId);
+                    console.log(`Removed peer: ${peerId}`);
+                    
+                    // Send a disconnect message to the chat
+                    const disconnectMessage = {
+                        id: Utils.generateId(),
+                        content: `${peerInfo.stamp} has left the network`,
+                        sender: 'SYSTEM',
+                        senderName: 'System',
+                        timestamp: Date.now(),
+                        receiver: null,
+                        isSecret: false,
+                        isOwn: false,
+                        isSystem: true
+                    };
+                    
+                    this.chatManager.receiveMessage(disconnectMessage);
+                    this.updateConnectionStatus();
+                }
             }
             
             // Update connection status in UI
@@ -788,41 +904,6 @@
                 }
             }
             
-            // Add a simulated peer for demo purposes
-            addSimulatedPeer() {
-                const peerId = 'SmartFox5678';
-                const peerName = 'SmartFox';
-                
-                // Simulate receiving a message from this peer after a delay
-                setTimeout(() => {
-                    const message = {
-                        id: Utils.generateId(),
-                        content: 'Hello there! This is a message from another user in the network.',
-                        sender: peerId,
-                        senderName: peerName,
-                        timestamp: Date.now(),
-                        receiver: null,
-                        isSecret: false
-                    };
-                    
-                    this.chatManager.receiveMessage(message);
-                }, 5000);
-                
-                // Simulate another message
-                setTimeout(() => {
-                    const message = {
-                        id: Utils.generateId(),
-                        content: 'The decentralized network is working! Each user contributes to the network.',
-                        sender: peerId,
-                        senderName: peerName,
-                        timestamp: Date.now(),
-                        receiver: null,
-                        isSecret: false
-                    };
-                    
-                    this.chatManager.receiveMessage(message);
-                }, 10000);
-            }
             
             // Send message to peers
             async sendMessage(message) {
@@ -832,16 +913,53 @@
                 // Add message to blockchain
                 const block = await this.blockchain.addMessage(message);
                 
-                // In a full implementation, this would send the message through WebRTC data channels
-                // For now, we'll just log it
-                console.log('Sending message to peers:', message);
+                // Send message to peers via localStorage signaling
+                this.sendToPeers(message);
                 
-                // Simulate network delay
-                setTimeout(() => {
-                    // In a real implementation, peers would receive this message and call:
-                    // this.chatManager.receiveMessage(message);
-                    console.log('Message sent to network');
-                }, 100);
+                console.log('Message sent to peers:', message);
+            }
+            
+            // Send message to all peers
+            sendToPeers(message) {
+                // Store message in localStorage for other peers to pick up
+                const messageData = {
+                    ...message,
+                    sender: this.localPeerId // Ensure sender is our peer ID
+                };
+                
+                try {
+                    localStorage.setItem('decentralizedChatMessage', JSON.stringify(messageData));
+                    // Clear the message after a short delay to avoid reprocessing
+                    setTimeout(() => {
+                        localStorage.removeItem('decentralizedChatMessage');
+                    }, 100);
+                } catch (error) {
+                    console.error('Error sending message to peers:', error);
+                }
+            }
+            
+            // Handle incoming message
+            handleIncomingMessage(message) {
+                console.log('Received message from peer:', message);
+                
+                // Add sender info if not present
+                if (!message.senderName) {
+                    message.senderName = message.sender;
+                }
+                
+                // Mark as not own message
+                message.isOwn = false;
+                
+                // Add to cache
+                this.cacheManager.addMessage(message);
+                
+                // Add to blockchain
+                this.blockchain.addMessage(message).catch(error => {
+                    console.error('Error adding message to blockchain:', error);
+                });
+                
+                // Pass to chat manager
+                this.chatManager.receiveMessage(message);
             }
             
             // Set cache size
@@ -988,8 +1106,8 @@
                 // Save messages
                 this.saveMessages();
                 
-                // Notify user of new message (if not in focus)
-                if (!document.hasFocus()) {
+                // Notify user of new message (if not in focus and not a system message)
+                if (!document.hasFocus() && !message.isSystem) {
                     // Try to use the Notifications API
                     if ("Notification" in window) {
                         if (Notification.permission === "granted") {
