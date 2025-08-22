@@ -11,25 +11,29 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    env:
-      BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # If you do NOT have a build process, use your project root as publish_dir
-      - name: Remove workflow artifacts from output (optional, safer)
+      # Figure out the branch name safely for both push and PR
+      - name: Get branch name
+        id: extract_branch
         run: |
-          rm -rf .git .github
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            echo "branch_name=${GITHUB_HEAD_REF}" >> $GITHUB_OUTPUT
+          else
+            echo "branch_name=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+          fi
 
-      # Deploy to GitHub Pages in a branch-specific subdirectory
+      - name: Remove workflow artifacts from output (optional, safer)
+        run: rm -rf .git .github
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: .
-          destination_dir: preview/${{ env.BRANCH_NAME }}
+          destination_dir: preview/${{ steps.extract_branch.outputs.branch_name }}
 
       - name: Show preview URL
-        run: echo "Preview: https://shek-hrd.github.io/chatter/preview/${{ env.BRANCH_NAME }}/"
+        run: echo "Preview: https://shek-hrd.github.io/chatter/preview/${{ steps.extract_branch.outputs.branch_name }}/"
